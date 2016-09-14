@@ -1,0 +1,1200 @@
+---
+output: html_document
+---
+P2P Loans as an Effective Investment Strategy 
+========================================================
+By Mikiko Bazeley
+
+# Abstract
+I describe the process of evaluting peer-to-peer lending as an investment instrument and attempt to establish guidlines for novice investors. 
+
+# Introduction
+The data set we will be exploring originated with Prosper, one of the best-known companies in the Peer2Peer lending space that is inhabited by competitors such as LendingClub. 
+
+Peer-to-peer lending is ["the practice of lending money to individuals or businesses through online services that match lenders directly with borrowers"](https://en.wikipedia.org/wiki/Peer-to-peer_lending) and is one example of disruption of traditional birck-and-mortar operators (such as investment and commercial banks). With the Prosper model, the interest rate on a loan listing is fixed by Prosper on the basis of analysis of the borrowers credit. 
+
+Borrowers on sites like Prosper cite the ability to secure smaller loans for a competitive interest that allows them to consolidate debt, especially during a time where the average American's credit card debt is at an all time high, [coupled with a lagging median income, increased cost of living, and increases in student tuition](http://www.nerdwallet.com/blog/credit-card-data/average-credit-card-debt-household). 
+
+Invstors cite higher returns, even at the risk that borrowers will default, as well as the [low entrance and transaction fees](https://www.prosper.com/invest) as opposed to [other forms of securities](http://www.investopedia.com/ask/answers/05/minimumsharesfortrade.asp). For example, Prosper allows investors to purchase notes or partially fund listings for a minimum of $25 (with a one time fee servicing fee of 1% per loan), whereas brokers for other kinds of securities can charge [as high as 7% per transaction](http://www.bloomberg.com/news/articles/2014-10-08/an-investor-s-guide-to-fees-and-expenses-2014). 
+
+
+As a young professional that is interested in long-term life planning, the low entrance fee, the ability to diversify across a wide grade of loans, and the ability to manage a portfolio in a manner aligned with my risk horizon (as well as having explored traditional wealth management channels) makes p2p lending seem like an attractive option. 
+
+
+With this project I attempt to analyze the population of Propser borrowers in order to create a rough credit risk model for ensuring a positive (if not high) return on investment by charactrizing low risk loans (loans that haven't defaulted). 
+
+
+The core questions can be summarized as:
+
+1. What does the current population of loans and borrowers look like?
+2. What are some characteristics that predict ROI?
+3. Can I build a simple model that will generate net positive returns?
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(stringr)
+library(XML)
+library(maps)
+library(readxl)
+library(extrafontdb)
+library(extrafont)
+```
+
+```{r=Load_the_Data,echo=FALSE,warning=FALSE,error=FALSE}
+# Load the Data
+setwd( "C:\\Users\\mbazeley\\Desktop\\Udacity_R_Final_Project\\Prosper_Loan_Data\\Final_Scripts\\Udacity_R_FinalProject_Explore-Summarize-Data")
+prosperData<-read.csv("prosperLoanData.csv",header=TRUE)
+```
+
+# Dataset
+### Planning via QMCA
+We'll be using an analysis framework called [QMCA (stands for Query|Map|Connect|Assess)](#qmca) to prepare and structure the initial data set to answer questions like: 
+
+
+* What does our data look like? 
+* Can our data support the questions we're attempting to answer? 
+* Do we need more data (or do we need to transform our current data set)?
+
+
+
+#### Query
+
+We've established the Query stage in determing the core questons:
+
+1. Who are the borrowers?
+2. Which listings had the best returns? 
+3. Can I create a successful portfolio of loans? 
+
+#### Map
+
+The next step is understanding the network of entities amd relationships that compose our Prosper data set, as well as the basic dimensions (i.e. mapping the data). 
+
+When we first look at the data set, we'll see that there are 113,937 observations composed of 81 variables <<<<<<insertcode>>>>>. The data covers a fairly wide time frame <<<time frame>>>>> during which Prosper made some significant feature changes (as well as business model improvements [Put link to blog posts here]()). 
+
+There is data relating to loans, listings, borower, and lenders that comes from a variety of sources such as the users themselves and external credit agencies, which means we'll be establishing a criteria for the type of information we actually will need to avoid analysis paralysis. 
+
+```{r,echo=FALSE,warning=FALSE,error=FALSE}
+str(prosperData,list.len=10,vec.len=5)
+#Should print 113,937 Observations & 81 Variables
+```
+
+
+Scanning the documentation [link to variable listing](), we can tell there are some variables that are more clearly related to one entity than another. 
+
+For example, BorrowerState describes a feature of borrowers, where as LenderYield relates to Lenders. During data base implementation projects a type of tool is typically used to construct a "rough draft" that outlines the entities, relationships, and the attributes or characteristics associated with each. 
+
+We can also see the first possible need for segmentation in noting that somre of the variables state that values have only been incurred post-2009 (which corresponds to a business model re-launch due to an [SEC inquiry surrounding the classification of Prosper's loans as securities](http://archive.fortune.com/2009/04/28/technology/hempel_prosper.fortune/index.htm)).
+
+I created a "fake" Entity-Relationship diagram that creates guidlines about the kinds of questions we can ask of our data. For exmaple, an inapropriate analysis would attempt to use LoanKey as the basis for inferring the economic conditions borrowers might have been experiencing at the tiem of posting. 
+
+
+<<<<Insert fake-ERD>>>>>
+
+One helpful tip for starting to create an ERD is that in a relational data base model, the unique values column of a table will usually have "key" in the name. 
+
+The key groupings to take note of are:
+
+*  Borrowers
+*  Lenders
+*  Loans
+*  Listings
+*  Credit History
+
+Specifically, we might want to direct our attention to the data clustered around borrowers, loans, listings, and credit history. 
+<<<<<<<<More detail>>>>>>>
+
+#### Connect
+
+One of the challenges with a dataset this complex is understanding the industry and trends being described. As someone who has had very little direct experience with loans or the loan process, even as a borrower, I decided to research if there were existing frameworks for assessign credit risk and worthiness. A quick search uncovered the "5 (Sometimes 4) C's of Credit Worthiness". 
+
+This could be largely summarised as:
+
+
+##### The 5 C's
+***
+
+
+The C | Guiding Concept
+------------- | -------------
+Character | How trust worthy are you (as shown by your past actions)?
+Capacity | How able are you to make the expected loan payments?
+Capital/Collateral | In case you are unable to fulfill your loan obligations, how much of the principal can be salvaged?
+Conditions | What are the conditions of the arrangement?
+
+
+***
+
+
+More information about the 5C's (as applied to consumer lending) can be found [at the bottom](#resources). For our purposes, we want to be able to answer questions like, 
+
+"Of the data we have, what can be utilized for accurately assessing whether a loan will result in a high, positive yield? Is there data that we don't have? Is there data we have that needs to be transformed?". 
+
+A variety of [resources](#resources) lead me to determine that for the following characteristics, we could use (with caveats):
+
+##### The 5C Connection
+
+***
+
+
+The C | Useful Variables Examples
+------------- | -------------
+Character | -
+- | Credit Score Range Lower
+- | Credit Score Range Upper
+- | Prosper Principal Borrowed
+- | Prosper Principal Outstanding
+- | Employment Status Duration
+- | Recommendations
+Capacity | -
+- | Debt-to-income
+- | Stated Monthly Income
+- | Monthly Loan Payment
+- | Income Verifiable
+- | Income Range
+Capital | -
+- | (No Data Available)
+Collateral | -
+- | Open Credit Lines
+- | Current Credit Lines
+- | Bank Card Utilization
+- | Available Bankcard
+Conditions | -
+- | Listing Category
+- | Listing Creation Date
+- | Term (Months)
+- | Credit Grade
+- | Prosper Rating (Numeric)
+- | Prosper Rating (Alpha)
+
+
+
+***
+
+### DQ Assessment 
+
+We're interested in figuring out:
+
+* The amount of data available 
+
+* The distribution of variables
+
+* Any transformations we'd need to perform to extract the relevant data
+
+While I won't be walking through each inidividual varuable assessed, the process I would take is:
+
+<<<<<<<<<insert generic explanation/summary>>>>>>>>>>
+
+```{r-Data_Set_Prep,echo=FALSE,warning=FALSE,error=FALSE}
+#Prep, munging, etc
+
+#------------------------------------------------------------------------->
+#Making a copy of the data is a great habit to develop, as what tends to happen in the real world is you'll subset and transform the original data frame and then realize that a set of observations had been incorrectly coded (and now you have to go back and re-load the data, which can waste time).
+prosperDataCopy <-prosperData
+
+#------------------------------------------------------------------------->
+#We want the data to reflect the listing categories, so we'll add a column of NA's called Listing Type, which will list the reason for the listing initiation, based on the value of the Listing Category Number
+prosperData<-rename(prosperData,ListingCategoryNumb=ListingCategory..numeric.)
+prosperData$ListingType<-NA
+prosperData$ListingType <-
+  ifelse(
+    prosperData$ListingCategoryNumb == "1","Debt Consolidation",
+    ifelse(
+      prosperData$ListingCategoryNumb == "2", "Home Improvement",
+      ifelse(
+        prosperData$ListingCategoryNumb == "3", "Business",
+        ifelse(
+          prosperData$ListingCategoryNumb == "4", "Personal Loan",
+          ifelse(
+            prosperData$ListingCategoryNumb == "5", "Student Use",
+            ifelse(
+              prosperData$ListingCategoryNumb == "6", "Auto",
+              ifelse(
+                prosperData$ListingCategoryNumb == "7", "Other",
+                ifelse(
+                  prosperData$ListingCategoryNumb == "8", "Baby & Adoption",
+                  ifelse(
+                    prosperData$ListingCategoryNumb == "9", "Boat",
+                    ifelse(
+                      prosperData$ListingCategoryNumb == "10","Cosmetic Procedure",
+                      ifelse(
+                        prosperData$ListingCategoryNumb == "11", "Engagement Ring",
+                        ifelse(
+                          prosperData$ListingCategoryNumb == "12", "Green Loans",
+                          ifelse(
+                            prosperData$ListingCategoryNumb == "13", "Household Expenses",
+                            ifelse(
+                              prosperData$ListingCategoryNumb == "14", "Large Purchases",
+                              ifelse(
+                                prosperData$ListingCategoryNumb == "15", "Medical/Dental",
+                                ifelse(
+                                  prosperData$ListingCategoryNumb == "16", "Motorcycle",
+                                  ifelse(
+                                    prosperData$ListingCategoryNumb == "17", "RV",
+                                    ifelse(
+                                      prosperData$ListingCategoryNumb == "18", "Taxes",
+                                      ifelse(
+                                        prosperData$ListingCategoryNumb == "19", "Vacation",
+                                        ifelse(
+                                          prosperData$ListingCategoryNumb == "20", "Wedding Loans","NA"))))))))))))))))))))
+
+#------------------------------------------------------------------------->
+#We want the to coerce listing category as a factor, which will make certain analysis oprations easier
+prosperData$ListingCategoryNumb<-as.factor(prosperData$ListingCategoryNumb)
+
+
+
+#------------------------------------------------------------------------->
+#Renaming additional Columns
+prosperData<-rename(prosperData,ProsperRatingNumb=ProsperRating..numeric.)
+prosperData<-rename(prosperData,ProsperRatingAlpha=ProsperRating..Alpha.)
+prosperData<-rename(prosperData,TradesNeverDelinqPerc=TradesNeverDelinquent..percentage.)
+
+#------------------------------------------------------------------------->
+#Setting levels on Loan Status
+prosperData$LoanStatus=factor(prosperData$LoanStatus,levels=c("Cancelled","Current","FinalPaymentInProgress","Completed","Chargedoff","Past Due (1-15 days)","Past Due (16-30 days)","Past Due (31-60 days)","Past Due (61-90 days)","Past Due (91-120 days)","Past Due (>120 days)","Defaulted"))
+
+
+#------------------------------------------------------------------------->
+#want to group the past due people together
+prosperData$LoanStatus_Type<-NA
+prosperData$LoanStatus_Type <-
+  ifelse(
+    prosperData$LoanStatus == "Chargedoff",
+    "NonPayment",
+    ifelse(
+      prosperData$LoanStatus ==
+        "Past Due (1-15 days)",
+      "NonPayment",
+      ifelse(
+        prosperData$LoanStatus ==
+          "Past Due (16-30 days)",
+        "NonPayment",
+        ifelse(
+          prosperData$LoanStatus ==
+            "Past Due (31-60 days)",
+          "NonPayment",
+          ifelse(
+            prosperData$LoanStatus ==
+              "Past Due (61-90 days)",
+            "NonPayment",
+            ifelse(
+              prosperData$LoanStatus ==
+                "Past Due (91-120 days)",
+              "NonPayment",
+              ifelse(
+                prosperData$LoanStatus ==
+                  "Past Due (>120 days)",
+                "NonPayment",
+                ifelse(
+                  prosperData$LoanStatus ==
+                    "Defaulted",
+                  "NonPayment",
+                  ifelse(
+                    prosperData$LoanStatus ==
+                      "Cancelled",
+                    "Cancelled",
+                    ifelse(
+                      prosperData$LoanStatus ==
+                        "Current",
+                      "Current",
+                      ifelse(
+                        prosperData$LoanStatus ==
+                          "FinalPaymentInProgress",
+                        "Current",
+                        ifelse(prosperData$LoanStatus ==
+                                 "Completed", "Completed", NA)
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+#------------------------------------------------------------------------->
+#Ignore cancelled
+prosperData<-prosperData[prosperData$LoanStatus_Type!="Cancelled",]
+
+#------------------------------------------------------------------------->
+#We also want to subset the data.frame and analyze just the loans that originated in 2009 or later
+prosperData$LoanYear<-substring(prosperData$LoanOriginationQuarter,4,7)
+prosperData$LoanYear<-as.numeric(prosperData$LoanYear)
+
+prosperData2009<-prosperData[prosperData$LoanYear>=2009,]
+
+prosperData2009_workingSet<-subset(prosperData2009,select=c("ListingKey","LoanYear","ListingType","MemberKey","MonthlyLoanPayment","LoanOriginalAmount","LoanNumber","ProsperPrincipalOutstanding","ProsperPrincipalBorrowed","TotalProsperLoans","LoanKey","IncomeVerifiable","StatedMonthlyIncome","IncomeRange","DebtToIncomeRatio","CreditGrade","Term","LoanStatus","LoanStatus_Type","EstimatedReturn","ProsperRatingNumb","ProsperRatingAlpha","ProsperScore","ListingCategoryNumb","BorrowerState","EmploymentStatus","EmploymentStatusDuration","Occupation","IsBorrowerHomeowner","CreditScoreRangeLower","CurrentCreditLines","OpenCreditLines","LoanOriginationQuarter"))
+```
+
+
+
+
+
+
+
+
+
+
+***
+
+
+The C | Data Set Variables | Use? | Why? | Transform? | New Variable (if applicable)
+------------- | ------------- | ------------- | ------------- | ------------- | -------------
+Character | - | - | - | - | - 
+- | Credit Score Range Lower | Yes | - | No need, can use either since distributions are the same | -  
+- | Credit Score Range Upper | Yes | - | - | - 
+- | Prosper Principal Borrowed | - | - | - | - 
+- | Prosper Principal Outstanding | - | - | - | Prosper Ratio = (Outstanding)/(Borrowed)
+- | Employment Status| - | - | - | - 
+- | Employment Status Duration | - | - | - | - 
+- | Occupation | - | - | - | - 
+- | Borrower State | - | - | - | - 
+- | IsHomeowner | - | - | - | - 
+- | Recommendations
+Capacity | - | - | - | - | - 
+- | Debt-to-income | - | - | - | - 
+- | Stated Monthly Income | - | - | - | - 
+- | Monthly Loan Payment | - | - | - | - 
+- | Income Verifiable | - | - | - | - 
+- | Income Range | - | - | - | - 
+Capital | - | - | - | - | - 
+- | (No Data Available) | - | - | - | - 
+Collateral | - | - | - | - | - 
+- | Open Credit Lines | - | - | - | - 
+- | Current Credit Lines | - | - | - | - 
+- | Bank Card Utilization | - | - | - | - 
+- | Available Bankcard | - | - | - | - 
+Conditions | - | - | - | - | - 
+- | Loan Origination Quarter | - | - | - | - 
+- | Loan Status Type | - | - | - | - 
+- | Listing Category | - | - | - | - 
+- | Listing Creation Date | - | - | - | - 
+- | Term (Months) | - | - | - | - 
+- | Credit Grade | - | - | - | - 
+- | Prosper Rating (Numeric) | - | - | - | - 
+- | Prosper Rating (Alpha) | - | - | - | - 
+
+
+***
+### Data Set Summary
+```{r-Data_Set_Summary,,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+### What is the structure of your dataset?
+
+* Number of observations: `r nrow(prosperData)` 
+
+* Number of variables: `r  ncol(prosperData) `
+
+* Mix of qualitative and quantitative variables
+
+* Covers time period during two major periods of the platform
+
+(--------------find date range of records------------), different features implemented for rating loans
+
+
+
+# Exploring the Population of Borrowers (post-2009)
+
+```{r-Univariate_Plots,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+Part of the value proposition of peer-to-peer lending is the opportunity for unparalleled face-time with the individuals that I would be funding and assisting in their various endeavors. Within the Prosper data set we can gain a sense of who these individuals are, their overall economic picture, and the reasons why they are seeking loans. 
+
+```{r-Map of Borrower States,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.locB<-prosperData2009_workingSet %>%
+  select(BorrowerState) %>%
+  group_by(BorrowerState) %>%
+  tally %>%
+  mutate(freq=n/sum(n)*100)
+
+colnames(prosperData2009_workingSet.locB)<-c("region","count","freq")
+
+
+us_state_map <- map_data('state')
+
+prosperData2009_workingSet.locB$state_names<-state.name[match(prosperData2009_workingSet.locB$region,state.abb)]
+prosperData2009_workingSet.locB$state_names<-ifelse(prosperData2009_workingSet.locB$region=="DC","district of columbia",prosperData2009_workingSet.locB$state_names)
+prosperData2009_workingSet.locB$state_names<-tolower(prosperData2009_workingSet.locB$state_names)
+
+map_data <- merge(prosperData2009_workingSet.locB, us_state_map, by.x = 'state_names',by.y='region',all.y=TRUE)
+
+map_data <- arrange(map_data, order)
+
+states <- data.frame(state.center, state.abb)
+
+p1 <- ggplot(data = map_data, aes(x = long, y = lat, group = group))+
+  geom_polygon(aes(fill = cut_interval(freq,length=2)))+
+  geom_path(colour = 'gray', linetype = 2)+
+  scale_fill_brewer('Loan Originations (%)', palette  = 'PuOr')+
+  coord_map()+
+  geom_text(data = states, aes(x = x, y = y, label = state.abb, group = NULL), size = 2)+
+  theme_bw()+
+  theme(legend.background = element_rect(fill="gray90", size=.5, linetype="dotted"),
+        axis.title=element_blank(),
+        axis.text=element_blank())+
+  labs(title=expression(atop("Distribution of Borrower States:Prosper Loans post-2009", atop(italic("Note: Alaska (1.39%), Hawaii (0.4%) not shown due to physical scale of countries")))))
+
+p1
+```
+
+
+#### Top Five Borrowing States
+
+
+```{r-Top Five Borrowing States_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.locB_arrg<-arrange(prosperData2009_workingSet.locB,desc(freq))
+prosperData2009_workingSet.locB_top5<-prosperData2009_workingSet.locB_arrg[1:5,]
+
+knitr::kable(prosperData2009_workingSet.locB_top5)
+```
+
+
+#### Least Five Borrowing States
+
+
+```{r-Least Five Borrowing States_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.locB_arrg<-arrange(prosperData2009_workingSet.locB,freq)
+prosperData2009_workingSet.locB_bot5<-prosperData2009_workingSet.locB_arrg[1:5,]
+
+knitr::kable(prosperData2009_workingSet.locB_bot5)
+```
+
+
+The top ten occupations of the post-2009 borrowers (of the 68 represented) are:
+```{r-top ten occupations_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.occupation<-prosperData2009_workingSet %>%
+  select(Occupation) %>%
+  group_by(Occupation) %>%
+  tally %>%
+  mutate(perc=n/sum(n))
+
+prosperData2009_workingSet.occupation.top5 <-arrange(prosperData2009_workingSet.occupation,desc(perc))
+prosperData2009_workingSet.occupation.top5<-prosperData2009_workingSet.occupation.top5[1:10,]
+
+knitr::kable(prosperData2009_workingSet.occupation.top5)
+```
+
+
+### Employment status:
+
+
+```{r-Employment status_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.EmploymentStatus<-prosperData2009_workingSet %>%
+  group_by(EmploymentStatus) %>%
+  tally %>%
+  mutate(freq=(n/sum(n))*100)
+
+prosperData2009_workingSet.EmploymentStatus.long<-arrange(prosperData2009_workingSet.EmploymentStatus,desc(freq))
+knitr::kable(prosperData2009_workingSet.EmploymentStatus.long)
+```
+
+
+### Employment Status Duration:
+
+```{r-Employment Status Duration_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.EmploymentStatus_Duration<-prosperData2009_workingSet %>%
+  select(EmploymentStatus,EmploymentStatusDuration) %>%
+  group_by(EmploymentStatus,EmploymentStatusDuration) %>%
+  tally 
+
+summary(prosperData2009_workingSet$EmploymentStatusDuration)
+
+prosperData2009_workingSet.EmploymentStatus_Duration$EmploymentStatus=factor(prosperData2009_workingSet.EmploymentStatus_Duration$EmploymentStatus,levels=c("Employed","Full-time","Self-employed","Other","Not employed","Retired","Part-time","Not available",""))
+
+
+empStatus<-ggplot(data=prosperData2009_workingSet.EmploymentStatus_Duration,aes(y=n,x=EmploymentStatus))+
+  geom_boxplot()
+
+empStatus
+
+ylim1=boxplot.stats(prosperData2009_workingSet.EmploymentStatus_Duration$n)$stats[c(1,5)]
+empStatusZoom=empStatus+coord_cartesian(ylim=ylim1*4)
+
+empStatusZoom
+
+```
+
+
+
+### Listing Type:
+
+```{r-Listing Type_,echo=FALSE,warning=FALSE,error=FALSE}
+#Listing Category
+#Conclusion: Fun to look at, most loans were for debt consolidation
+prosperData2009_workingSet$ListingType<-as.factor(prosperData2009_workingSet$ListingType)
+
+prosperData2009_workingSet.Loan.ListingType<-prosperData2009_workingSet %>%
+  group_by(ListingType) %>%
+  summarise(n=n()) %>%
+  mutate(freq=(n/sum(n))*100)
+prosperData2009_workingSet.Loan.ListingType<-prosperData2009_workingSet.Loan.ListingType[order(-prosperData2009_workingSet.Loan.ListingType[,2]),]
+
+View(prosperData2009_workingSet.Loan.ListingType)
+
+#Split out in bunches of 5
+#Top 5
+Top5_ListingType<-prosperData2009_workingSet.Loan.ListingType[1:5,]
+Top10_ListingType<-prosperData2009_workingSet.Loan.ListingType[6:10,]
+Top15_ListingType<-prosperData2009_workingSet.Loan.ListingType[11:15,]
+
+
+p4<-ggplot(data=prosperData2009_workingSet.Loan.ListingType,aes(x=reorder(ListingType,-freq),y=freq,fill=ListingType)) +
+  geom_bar(colour="black",stat="identity") +
+  theme(axis.text.x = element_text(angle = 55, vjust = 1, hjust=1))+
+  scale_y_continuous(breaks=seq(0,max(prosperData2009_workingSet.Loan.ListingType$freq),10))+
+  xlab('Listing Type')+
+  ylab('Percentage')+
+  ggtitle("All Listing Types")+
+  guides(fill=FALSE)
+  
+
+p4
+
+p1<-ggplot(data=Top5_ListingType,aes(x=reorder(ListingType,-freq),y=freq,fill=ListingType)) +
+  geom_bar(colour="black",stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+  scale_y_continuous(breaks=seq(0,max(Top5_ListingType$freq)+5,5))+
+  xlab('Listing Type')+
+  ylab('Percentage')+
+  ggtitle("Ranked 1-5")+
+  geom_hline(yintercept=2.34831818,colour='red')+
+  guides(fill=FALSE)#The frequency level of listing category ranked #6
+
+p1
+
+p2<-ggplot(data=Top10_ListingType,aes(x=reorder(ListingType,-freq),y=freq,fill=ListingType)) +
+  geom_bar(colour="black",stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+  scale_y_continuous(breaks=seq(0,max(Top10_ListingType$freq),0.5))+
+  xlab('Listing Type')+
+  ylab('Percentage')+
+  ggtitle("Ranked 6-10")+
+  geom_hline(yintercept=0.90356130,colour='red')+
+  guides(fill=FALSE)#The frequency level of listing category ranked #11
+
+p2
+
+p3<-ggplot(data=Top15_ListingType,aes(x=reorder(ListingType,-freq),y=freq,fill=ListingType)) +
+  geom_bar(colour="black",stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+  scale_y_continuous(breaks=seq(0,max(Top15_ListingType$freq),0.1))+
+  xlab('Listing Type')+
+  ylab('Percentage')+
+  ggtitle("Ranked 11-15")+
+  geom_hline(yintercept=0.10706260,colour='red')+
+  guides(fill=FALSE)#The frequency level of listing category ranked #16
+
+p3
+
+```
+
+
+
+### Debt-to-Income Ratio
+
+```{r,echo=FALSE,warning=FALSE,error=FALSE}
+summary(prosperData2009_workingSet$DebtToIncomeRatio)
+
+ggplot(data=prosperData2009_workingSet,aes(x=DebtToIncomeRatio))+
+  geom_density()
+```
+
+
+-Different kinds of populations of lenders, borrowers, loans
+-see below
+
+### What is/are the main feature(s) of interest in your dataset?
+
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+
+### Did you create any new variables from existing variables in the dataset?
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+Segment out listings that originated in 2009. 
+
+
+### Verifiable Income Ranges
+
+```{r-Verifiable Income Ranges_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet$IncomeRange=factor(prosperData2009_workingSet$IncomeRange,levels=c("$0","$1-24,999","$25,000-49,999","$50,000-74,999","$75,000-99,999","$100,000+","Not displayed","Not employed"))
+
+verifIncRange.long<-prosperData2009_workingSet %>%
+  filter(IncomeVerifiable=="TRUE") %>%
+ select(IncomeRange) 
+  
+
+verifIncRange<-prosperData2009_workingSet %>%
+  filter(IncomeVerifiable=="TRUE") %>%
+  filter(IncomeRange!="Not displayed") %>%
+  filter(IncomeRange!="Not employed") %>%
+  select(IncomeRange) %>%
+  group_by(IncomeRange) %>%
+  tally %>%
+  mutate(perc=n/sum(n)*100) 
+
+colnames(verifIncRange)<-c("IncomeRange","counts","perc")
+
+
+
+knitr::kable(verifIncRange)
+
+incRangeBar<-ggplot(data=verifIncRange,aes(x=IncomeRange,y=counts,ymax=28000,fill=IncomeRange))+
+  geom_bar(stat='identity')+
+  guides(fill=FALSE)+
+  theme_light()+
+  theme(plot.title=element_text(family="Roboto"),
+        axis.title=element_text(face="bold"),
+        axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))+
+  labs(title=expression(atop("Distribution of Verifiable Income Ranges:", atop(italic("Income Verifiable != FALSE, Not including statuses: Not displayed, NA"), ""))),x='Income Ranges',y='No. Individuals') +
+  geom_text(aes(label=counts), vjust=-0.5)#+
+     #geom_text(label=c("7","3850","14030","22044","24062","13656"), position=position_dodge(width=0.9), vjust=-0.5)
+  
+
+incRangeBar
+
+
+
+verifIncRange.LoanStatus<-prosperData2009_workingSet %>%
+  filter(IncomeVerifiable=="TRUE") %>%
+  filter(IncomeRange!="Not displayed") %>%
+  filter(IncomeRange!="Not employed") %>%
+  select(IncomeRange,LoanStatus_Type) %>%
+  group_by(IncomeRange,LoanStatus_Type) %>%
+  tally %>%
+  mutate(perc=n/sum(n)*100,pos=cumsum(perc)-(0.5*perc),posLabel=as.integer(perc)) 
+
+
+incRangeLStat<-ggplot(verifIncRange.LoanStatus,aes(x=IncomeRange,y=perc))+
+  geom_bar(aes(fill=LoanStatus_Type),stat="identity")+
+  geom_text(aes(label=posLabel,y=pos),size=3)
+
+
+incRangeLStat
+
+```
+
+
+
+
+
+<------------------------------------------------------------------------------------------------->
+
+# Bivariate Plots Section
+
+### Loan Status Breakdown of Loan Types
+
+```{r-Loan Status Breakdown of Loan Types_,echo=FALSE,warning=FALSE,error=FALSE}
+verifIncRange.LoanStatus.LoanType<-prosperData2009_workingSet %>%
+  filter(IncomeVerifiable=="TRUE") %>%
+  filter(IncomeRange!="Not displayed") %>%
+  filter(IncomeRange!="Not employed") %>%
+  filter(LoanStatus_Type!="Current") %>%
+  select(ListingType,LoanStatus_Type) %>%
+  group_by(ListingType,LoanStatus_Type) %>%
+  tally %>%
+  mutate(perc=n/sum(n)*100,pos=cumsum(perc)-(0.5*perc),posLabel=round(perc,digits=0)) 
+
+
+
+
+incRangeLTypeStat<-ggplot(verifIncRange.LoanStatus.LoanType,aes(x=ListingType,y=perc))+
+  geom_bar(aes(fill=LoanStatus_Type),stat="identity")+
+  geom_text(aes(label=posLabel,y=pos),size=3)+
+  theme(axis.text.x = element_text(angle = 55, vjust = 1, hjust=1))
+
+
+incRangeLTypeStat
+
+
+```
+
+
+### Listing Type Against Estimated Return
+
+
+```{r-Listing Type Against Estimated Return_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet.EstReturn.ListType<-prosperData2009_workingSet %>%
+  select(EstimatedReturn,ListingType) %>%
+  mutate(EstimatedReturnPerc=EstimatedReturn*100)
+
+
+
+estReturnVSListType<-ggplot(data=prosperData2009_workingSet.EstReturn.ListType,aes(x=ListingType,y=EstimatedReturnPerc))+
+  geom_boxplot()+
+  geom_hline(aes(yintercept = 9.607),colour='red')+
+  geom_hline(aes(yintercept = 9.170),colour='blue')+
+  theme(axis.text.x = element_text(angle = 55, vjust = 1, hjust=1))
+#Blue: Represents median
+#Red: Mean
+
+
+estReturnVSListType
+
+ylim1=boxplot.stats(prosperData2009_workingSet.EstReturn.ListType$EstimatedReturnPerc)$stats[c(1,5)]
+newGraph_estReturnVSListType = estReturnVSListType+coord_cartesian(ylim=ylim1*1.01)
+newGraph_estReturnVSListType
+
+
+```
+
+
+
+### Listing TYpe AGainst Expected Return2 -- return back to this later
+
+
+```{r-Listing TYpe AGainst Expected Return2,echo=FALSE,warning=FALSE,error=FALSE}
+#reorder isn't working fr me right now, see if it'll work later
+##########Order by mean ###############
+prosperData2009_workingSet.EstReturn.ListType.summary<-prosperData2009_workingSet %>%
+  filter(EstimatedReturn!=is.na(EstimatedReturn)) %>%
+  select(EstimatedReturn,ListingType) %>%
+  group_by(ListingType) %>%
+  mutate(EstimatedReturnPerc=EstimatedReturn*100) %>%
+  summarise(avg=mean(EstimatedReturnPerc)) %>%
+  arrange(desc(avg))
+
+
+prosperData2009_workingSet.EstReturn.ListType2<-prosperData2009_workingSet %>%
+  filter(EstimatedReturn!=is.na(EstimatedReturn)) %>%
+  select(EstimatedReturn,ListingType) %>%
+  mutate(EstimatedReturnPerc=EstimatedReturn*100)
+
+#prosperData2009_workingSet.EstReturn.ListType2$ListingType=factor(prosperData2009_workingSet.EstReturn.ListType2$ListingType,
+#levels=c("NA","Cosmetic Procedure","Auto","Other","Household Expenses","Business","RV","Student Use","Wedding Loans","Home #Improvement","Medical/Dental","Motorcycle","Taxes","Vacation","	
+#Green Loans","Engagement Ring","Large Purchases","Baby & Adoption","Debt Consolidation","Boat"))
+levels(prosperData2009_workingSet.EstReturn.ListType2$ListingType)<-c("NA","Cosmetic Procedure","Auto","Other","Household Expenses","Business","RV","Student Use","Wedding Loans","Home Improvement","Medical/Dental","Motorcycle","Taxes","Vacation","	
+Green Loans","Engagement Ring","Large Purchases","Baby & Adoption","Debt Consolidation","Boat")
+
+
+estReturnVSListTypeOrdered<-ggplot(data=prosperData2009_workingSet.EstReturn.ListType2,aes(x=ListingType,y=EstimatedReturnPerc))+
+  geom_boxplot()+
+  stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")+
+  stat_summary(fun.y=mean,geom="point")+
+  theme(axis.text.x = element_text(angle = 55, vjust = 1, hjust=1))
+#Blue: Represents median
+#Red: Mean
+
+
+estReturnVSListTypeOrdered
+```
+
+### Prosper Score Against Estmated Return
+
+
+```{r-Prosper Score Against Estmated Return_,echo=FALSE,warning=FALSE,error=FALSE}
+
+prosperData2009_workingSet$ProsperScore<-as.factor(prosperData2009_workingSet$ProsperScore)
+    
+prosperData2009_workingSet.EstReturn.PScore<-prosperData2009_workingSet %>%
+  select(EstimatedReturn,ProsperScore) %>%
+  mutate(EstimatedReturnPerc=EstimatedReturn*100)
+
+
+estReturnVSpScore<-ggplot(data=prosperData2009_workingSet.EstReturn.PScore,aes(x=ProsperScore,y=EstimatedReturnPerc))+
+  geom_boxplot()+
+  geom_hline(aes(yintercept = 9.607),colour='red')+
+  geom_hline(aes(yintercept = 9.170),colour='blue')
+#Blue: Represents median
+#Red: Mean
+
+
+estReturnVSpScore
+```
+
+
+### Prosper Rating Against Estmated Return
+
+```{r-Prosper Rating Against Estmated Return_,echo=FALSE,warning=FALSE,error=FALSE}
+prosperData2009_workingSet$ProsperRatingAlpha=factor(prosperData2009_workingSet$ProsperRatingAlpha,levels=c("AA","A","B","C","D","E","HR",""))
+
+prosperData2009_workingSet.EstReturn.PAlph<-prosperData2009_workingSet %>%
+  select(EstimatedReturn,ProsperRatingAlpha) %>%
+  mutate(EstimatedReturnPerc=EstimatedReturn*100)
+
+
+estReturnVSpAlpha<-ggplot(data=prosperData2009_workingSet.EstReturn.PAlph,aes(x=ProsperRatingAlpha,y=EstimatedReturnPerc))+
+  geom_boxplot()+
+  geom_hline(aes(yintercept = 9.607),colour='red')+
+  geom_hline(aes(yintercept = 9.170),colour='blue')
+#Blue: Represents median
+#Red: Mean
+
+
+estReturnVSpAlpha
+```
+
+
+
+###Debt-to_Income Ratio vs Estimated Return
+```{r-Debt-to_Income Ratio vs Estimated Return_,echo=FALSE,warning=FALSE,error=FALSE}
+
+ggplot(data=prosperData2009_workingSet,aes(x=DebtToIncomeRatio,y=EstimatedReturn))+
+  geom_point()
+
+pd09_DTI_vs_EstRet<-prosperData2009_workingSet %>%
+  filter(IncomeVerifiable!="FALSE") %>%
+  filter(!is.na(DebtToIncomeRatio)) %>%
+  filter(!is.na(EstimatedReturn)) %>%
+  group_by(DebtToIncomeRatio) %>%
+  select(DebtToIncomeRatio,EstimatedReturn) %>%
+  arrange(DebtToIncomeRatio)
+
+ggplot(data=pd09_DTI_vs_EstRet,aes(x=DebtToIncomeRatio,y=EstimatedReturn))+
+  geom_point(alpha=0.1,position="jitter")+
+  stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")+
+  theme_bw()
+
+
+ggplot(data=pd09_DTI_vs_EstRet,aes(x=EstimatedReturn,y=DebtToIncomeRatio))+
+  geom_point(alpha=0.1,position="jitter")+
+  theme_bw()
+
+```
+
+
+
+### Credit Score vs Estimated Return
+```{r,echo=FALSE,warning=FALSE,error=FALSE}
+creditScoreVSEstRetPt<-ggplot(data=prosperData2009_workingSet,aes(x=CreditScoreRangeLower,y=EstimatedReturn*100))+
+  geom_point(alpha=0.05,position="jitter")+
+  stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")+
+  stat_summary(fun.y=median,geom="line",aes(group=1),color="blue")+
+  theme_bw()
+
+creditScoreVSEstRetPt
+
+
+creditScoreVSEstRetBx<-ggplot(data=prosperData2009_workingSet,aes(x=CreditScoreRangeLower,y=EstimatedReturn))+
+  geom_boxplot(aes(group=CreditScoreRangeLower))+
+  stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")
+
+creditScoreVSEstRetBx
+
+ylim1=boxplot.stats(prosperData2009_workingSet$EstimatedReturn)$stats[c(1,5)]
+creditScoreVSEstRetBxZoom=creditScoreVSEstRetBx+coord_cartesian(ylim=ylim1*1.05)
+
+creditScoreVSEstRetBxZoom
+
+```
+
+
+### Credit Score vs Prosper (Alpha Rating)
+
+
+
+```{r}
+cScorevsProsperAlpha<-prosperData2009_workingSet %>%
+  filter(!is.na(ProsperRatingAlpha)) %>%
+  filter(!is.na(CreditScoreRangeLower)) %>%
+  group_by(ProsperRatingAlpha,CreditScoreRangeLower) %>%
+  tally %>%
+  arrange(ProsperRatingAlpha)
+
+
+
+
+ggplot(data=cScorevsProsperAlpha,aes(x=ProsperRatingAlpha,y=CreditScoreRangeLower))+
+  geom_boxplot()+
+ stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")+
+  stat_summary(fun.y=mean,geom="point")
+
+#Red: Mean
+ggplot(data=prosperData2009_workingSet,aes(x=ProsperRatingAlpha,y=CreditScoreRangeLower,color=LoanStatus_Type))+
+geom_point(position="jitter",alpha=0.5)+
+  theme_bw()+
+ stat_summary(fun.y=mean,geom="line",aes(group=1),color="blue")+
+  stat_summary(fun.y=mean,geom="point")
+
+```
+
+
+```{r-Loan Original Amt vs Estimated Return}
+
+ggplot(data=prosperData2009_workingSet,aes(x=LoanOriginalAmount,y=EstimatedReturn))+
+  geom_point(alpha=0.2)+
+  theme_bw()
+
+
+```
+
+
+```{r-Loan Original Amount VS LOan Status Type}
+ggplot(data=prosperData2009_workingSet,aes(x=LoanOriginalAmount))+
+  geom_density()+
+  theme_bw()
+
+ggplot(data=prosperData2009_workingSet,aes(x=LoanOriginalAmount))+
+  geom_density(aes(fill=LoanStatus_Type,color=LoanStatus_Type,alpha=0.1))+
+  theme_bw()
+
+
+
+```
+
+
+
+
+```{r- Loan Status Type vs Estimated Return}
+ggplot(data=prosperData2009_workingSet,aes(x=EstimatedReturn))+
+  geom_density(aes(fill=LoanStatus_Type,color=LoanStatus_Type,alpha=0.1))+
+  theme_bw()
+```
+
+
+```{r-Employment Status vs Loan Status}
+verifIncRange.EmploymentStatus.LoanStatus<-prosperData2009_workingSet %>%
+  select(EmploymentStatus,LoanStatus_Type) %>%
+  group_by(EmploymentStatus,LoanStatus_Type) %>%
+  tally %>%
+  mutate(perc=n/sum(n)*100,pos2=cumsum(perc)-(0.5*perc),posLabel1=as.integer(perc)) 
+
+
+ggplot(verifIncRange.EmploymentStatus.LoanStatus,aes(x=EmploymentStatus,y=perc))+
+  geom_bar(aes(fill=LoanStatus_Type),stat="identity")+
+  geom_text(aes(label=posLabel1,y=pos2),size=3)
+
+```
+
+```{r-Employment Status vs Estmate Return}
+ggplot(data=prosperData2009_workingSet,aes(x=EmploymentStatus,y=EstimatedReturn))+
+  geom_boxplot()+
+ stat_summary(fun.y=mean,geom="line",aes(group=1),color="red")+
+  stat_summary(fun.y=mean,geom="point")
+
+```
+
+```{r-Prosper Principal OUtstanding vs Employment Status}
+ppoVSEmpStatus<-prosperData2009_workingSet %>%
+  select(EmploymentStatus,ProsperPrincipalOutstanding)
+  
+ppoVSEmpStatus[is.na(ppoVSEmpStatus)]<-0
+
+
+
+ggplot(data=ppoVSEmpStatus,aes(x=EmploymentStatus,y=ProsperPrincipalOutstanding))+
+  geom_jitter(alpha=0.1)+
+  theme_bw()
+```
+
+
+```{r-DebtToIncome vs Credit Lines}
+ggplot(data=prosperData2009_workingSet,aes(x=CurrentCreditLines,DebtToIncomeRatio))+
+  geom_point(alpha=0.1)
+```
+
+
+
+```{r-Monthly Income vs Debt-to_Income Ratio}
+ggplot(data=prosperData2009_workingSet,aes(x=StatedMonthlyIncome,y=DebtToIncomeRatio))+
+  geom_point()
+
+
+ggplot(data=prosperData2009_workingSet,aes(x=StatedMonthlyIncome,y=DebtToIncomeRatio))+
+  geom_point(alpha=0.1)
+```
+
+
+
+
+
+
+```{r-Bivariate_Plots,,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+### What was the strongest relationship you found?
+
+
+
+
+# Multivariate Plots Section
+
+```{r-Multivariate_Plots,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+### Were there any interesting or surprising interactions between features?
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r-Plot_One,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+### Description One
+
+
+### Plot Two
+```{r-Plot_Two,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+### Description Two
+
+
+### Plot Three
+```{r-Plot_Three,echo=FALSE,warning=FALSE,error=FALSE}
+
+```
+
+### Description Three
+
+------
+
+# Reflection
+
+### Difficulties/Challenges
+
+While I eventually found the topic matter fascinating, there were several frustrations I encountered during this project that had less to do with the data itself but instead with the project structure. During day-to-day work and project management as an operations specialist, I'm never asked to analyze or report on a foreign dataset. The usual sequence of events that occur starts from being handed a directive or report and then being asked to query for the corresponding data. At a later stage, I'll consult the relevant database schema and work closely with the engineering and operations teams to ensure that I understand the data's context (such as important entities), the relationships, and other parameters like time horizon, customer information, etc. While skilled quantitative analysis is a key factor in success as an analyst, so to is the ability to work cross-functionally with teams and be willing to engage in feedback with internal and external stakeholders. 
+
+The lack of schema or ERD of a complex data set meant a good portion of my time was spent researching the consumer lending industry as well as diagramming my thoughts and intuition via a [diagram editing tool](https://www.gliffy.com/variants/) that I use daily. 
+
+<<<<<<<<<<<<<<<<<<<insert more>>>>>>>>>>>>>>>>>
+
+
+### Successes
+
+However the benefit of struggling with a novel data set forced me to create a framework that would guide the data set exploration, assessment, and structuring workflow process. The QMCA framwork complements the KDD [(Knowledge Discovery in Databases)](https://en.wikipedia.org/wiki/Data_mining) Process of data mining and can be positioned between the Selection stage and the Transformation Stage. 
+
+#### QMCA 
+
+QMCA stands for:
+
+*   Query:
+
+    +   undertsand questions (context)
+    
+*   Map:
+
+    +   available data into groups (gliffy)
+    
+*   Connect:
+
+    +   avaulable daat types with qustions (table)
+    
+*   Assess:
+
+    +   assess data quality (table)
+
+
+
+
+### Lessons Learned:
+-Banks/etc have their own prorietary mix
+-Some benchmarks well established; others not
+-LEarning pains/gorwht paisn
+
+
+### How would the analysis be enriched further in the future? (e.g. additional data & analyses)
+
+
+### Other notes:
+["Effective December 19, 2010, Prosper filed a new prospectus with the SEC, changing its business model to use pre-set rates determined solely by Prosper based on a formula evaluating each prospective borrower's credit risk.Under the new approach, lenders no longer determine the loan rate via price discovery in an auction. Instead, they simply choose whether or not to invest at the rate which Prosper's loan pricing algorithm assigns to the loan after it analyzes the borrower's credit report and financial information."](https://en.wikipedia.org/wiki/Prosper_Marketplace#Loan_performance_prior_to_July_2009)
+
+Although the re-launch occurred in July 2009, Prosper filed a prospectus with the SEC on Dec 19, 2010. A nice bonus to using a cut-off of at least 12 months means we can also include records where individuals have missed payments, defaulted, or initiated new loans with the set interest rates. 
+
+
+
+
+
+### Resources
+When I first began researching the peer-to-peer lending industry, I discovered that credit risk and establishing credit risk models has been a robust topic of discussion since the concept of lending was first established.Throughtout the centuries, a language od credit risk assessment has been estbalished, along with guiding frameworks and metrics. 
+
+
+Investopedia offered a number of helpful resources that explained what the 5C's of credit worthiness entailed and applications by banks: 
+
+*   [DEFINITION of 'Five Cs Of Credit'](http://www.investopedia.com/terms/f/five-c-credit.asp) 
+*   [Why do banks use the Five Cs of Credit to determine a borrower's credit worthiness?](http://www.investopedia.com/ask/answers/041715/why-do-banks-used-five-cs-credit.asp)
+*   [How do banks measure the Five Cs of Credit?](http://www.investopedia.com/ask/answers/033115/how-do-banks-measure-five-cs-credit.asp)
+
+that were utilized in [my analysis previously described](#the-5c-connection). 
+
+
+For understanding credit scores, I utilized a number of resources, including:
+
+*   [Understanding Credit & Credit Risk Scores by Credco](https://www.credco.com/assets/pdfs/datasheets/FICO-booklet.pdf)
+*   [What are the Different Scoring Ranges?](http://www.experian.com/blogs/ask-experian/2015/04/23/infographic-what-are-the-different-scoring-ranges/)
+
+
+To understand the practice of consumer lending, I relied on:
+
+*   [Introduction to Consumer Lending](http://www.slideshare.net/SalimNayef/introduction-to-consumer-lending)
+
+For examples of the importance of modeling credit risk across industries, please see:
+
+*   [A Trillion Dollar Question: What Predicts Student Loan Delinquency Risk?](http://www.federalreserve.gov/econresdata/notes/feds-notes/2015/trillion-dollar-question-what-predicts-student-loan-delinquency-risk-20151016.html)
+
+
+For mapping, I utilized this thread from StackOverflow:
+
+
+* [Plotting regions](http://stackoverflow.com/questions/17723822/administrative-regions-map-of-a-country-with-ggmap-and-ggplot2)
+
+* [Documentation for Maps package](https://cran.r-project.org/web/packages/maps/maps.pdf)
+
+* [Re-coding State Abbreviations so you're not spending hours on writing 50 if-else statements](http://stackoverflow.com/questions/5411979/state-name-to-abbreviation-in-r)
+
+* [For help picking colors](http://colorbrewer2.org/)
+
+* [Missing state boundaries? Could be a merge problem](http://stackoverflow.com/questions/22717892/r-ggplot2-mapping-issue-automate-missing-state-info)
+
+
+For boxplots:
+
+
+* [Zooming in on boxplots](http://stackoverflow.com/questions/5677885/ignore-outliers-in-ggplot2-boxplot)
+
+
+Stacked barcharts (or barcharts in general):
+
+
+* [Labels on bar charts](http://stackoverflow.com/questions/12018499/how-to-put-labels-over-geom-bar-for-each-bar-in-r-with-ggplot2)
+
+* [Doing Barcharts](http://stackoverflow.com/questions/6644997/showing-data-values-on-stacked-bar-chart-in-ggplot2)
+
+
+* [Order categorical data in a stacked bar plot](http://stackoverflow.com/questions/7150453/order-categorical-data-in-a-stacked-bar-plot-with-ggplot2)
